@@ -5,7 +5,11 @@ from discord.ext import commands
 
 from djkhaled.config import config
 
-bot = commands.Bot(command_prefix=".", intents=discord.Intents.all())
+bot = commands.Bot(
+    activity=discord.Game(name=f"music, use {config.discord.prefix}play"),
+    command_prefix=config.discord.prefix,
+    intents=discord.Intents.all(),
+)
 
 
 @bot.event
@@ -30,7 +34,7 @@ async def main():
     except Exception as e:
         print(f"Error loading extension: {e}")
         raise e
-    await bot.start(config.discord.bot_token)
+    await bot.start(config.discord.token)
 
 
 if __name__ == "__main__":
