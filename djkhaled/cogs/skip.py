@@ -15,12 +15,14 @@ class Skip(commands.Cog):
         Skip the current playing audio without disconnecting from the voice channel.
         """
         client = voice_clients[ctx.guild.id]
-        if not client or not client.is_playing():
+        if not client:
             return await send_error(ctx, "No audio is currently playing.")
 
         client.stop()
         await send_embed(ctx, "⏭️ Skipped", "Skipped the current track.", discord.Color.green())
+
         # TODO: Is the track even actually removed from the queue here when it's skipped?
+        # TODO: Doesn't go to the next song after the skip.
 
 
 async def setup(bot):

@@ -20,23 +20,17 @@ class Queue(commands.Cog):
         if not client or not client.is_playing():
             return await send_error(ctx, "No audio is currently playing.")
 
+        if not _queue:
+            return await send_error(ctx, "There are no songs currently in queue.")
+
         embed = discord.Embed(
             title="🎶 Current Song Queue",
-            description="Here are the songs in the queue:",
+            description="Here are the songs in the queue:\n",
             color=discord.Color.blue(),
         )
 
-        if _queue:
-            current_song = _queue[0]
-            embed.add_field(
-                name="Now Playing",
-                value=f"**{current_song['url']}** (Requested by: {current_song['requester'].name})",
-                inline=False,
-            )
-
-        for index, song in enumerate(_queue[1:], start=2):
-            song_info = f"**{index}.** {song['url']} (Requested by: {song['requester'].name})"
-            embed.add_field(name=f"Song {index}", value=song_info, inline=False)
+        for index, song in enumerate(_queue, start=1):
+            embed.description += f"**{index}.** {song['url']} (Requested by: {song['requester'].name})\n"
 
         await ctx.send(embed=embed)
 

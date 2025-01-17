@@ -14,15 +14,15 @@ bot = commands.Bot(
 
 @bot.event
 async def on_ready() -> None:
-    print(f"Logged in as: {bot.user.username}")
+    print(f"Logged in as: {bot.user}")
 
 
 @bot.event
 async def on_message(message):
-    print(f"Message from {message.author}: {message.content}")
-
     if message.author == bot.user:
         return
+
+    print(f"Message from {message.author}: {message.content}")
 
     await bot.process_commands(message)
 

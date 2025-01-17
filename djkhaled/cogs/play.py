@@ -21,10 +21,21 @@ class Play(commands.Cog):
         if not ctx.author.voice:
             return await send_error(ctx, "You need to join a voice channel first.")
 
-        client = voice_clients.get(ctx.guild.id)
+        client = voice_clients[ctx.guild.id]
         channel = ctx.author.voice.channel
-        queue = song_queue.get(ctx.guild.id)
+        queue = song_queue[ctx.guild.id]
 
+        # Add to the current queue if the a voice client object already exists.
+        if client:
+            queue.append({"url": url, "requester": ctx.author})
+            return await send_embed(
+                ctx,
+                "✅ Added to Queue",
+                f"Added to the queue. There are {len(queue)} songs in the queue.",
+                discord.Color.green(),
+            )
+
+        # Verify the bot can connect to the channel and create a new voice client object.
         if not client:
             permissions = channel.permissions_for(ctx.guild.me)
             if not permissions.view_channel:
@@ -37,15 +48,7 @@ class Play(commands.Cog):
             client = await channel.connect()
             voice_clients[ctx.guild.id] = client
 
-        if client and client.is_playing():
-            queue.append({"url": url, "requester": ctx.author})
-            return await send_embed(
-                ctx,
-                "✅ Added to Queue",
-                f"Added to the queue. There are {len(queue)} songs in the queue.",
-                discord.Color.green(),
-            )
-
+        # Once the bot is connected to the channel, begin streaming the audio.
         try:
             await stream_audio(ctx, client, url)
         except DownloadError:
