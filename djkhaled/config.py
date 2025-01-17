@@ -10,6 +10,7 @@ class ParentModel(BaseModel):
 
 class Discord(ParentModel):
     token: str
+    prefix: str
 
 
 class DJKhaledConfig(ParentModel):
