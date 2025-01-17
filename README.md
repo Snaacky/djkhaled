@@ -5,6 +5,17 @@ A music bot for Discord powered by yt-dlp
 * Python 3.11 (or greater)
 * uv
 
+## Supports
+* YouTube
+* Soundcloud
+* Deezer
+* Dailymotion
+* Streamable
+* Twitch
+* Vimeo
+* [and most services listed here](https://github.com/ytdl-org/youtube-dl/tree/master/youtube_dl/extractor)
+
+
 ## Installation
 1. Create a Discord bot token at https://discord.com/developers
 2. `git clone https://github.com/snaacky/djkhaled` to clone this repository locally.
