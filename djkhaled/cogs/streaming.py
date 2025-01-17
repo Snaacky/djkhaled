@@ -4,6 +4,7 @@ import traceback
 import discord
 import yt_dlp
 from discord.ext import commands
+from yt_dlp.utils import DownloadError
 
 from djkhaled.utils import send_embed, send_error
 
@@ -13,21 +14,14 @@ class Streaming(commands.Cog):
         self.bot = bot
         self.current_stream_process = None
         self.song_queue = []
+        self.voice_clients = {}
 
-    async def stream_audio_to_discord(self, ctx, vc, url, start_time=0):
+    async def stream_audio_to_discord(self, ctx, vc, url: str):
         """
         Streams audio to Discord using yt-dlp and ffmpeg.
         """
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "extractaudio": True,
-            "audioquality": 1,
-            "outtmpl": "pipe:1",
-            "quiet": True,
-            "noplaylist": True,
-        }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        opts = {"format": "bestaudio/best", "outtmpl": "pipe:1", "quiet": True, "noplaylist": True}
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
             title = info.get("title", "Unknown Title")
@@ -62,35 +56,40 @@ class Streaming(commands.Cog):
     @commands.command(name="play")
     async def play(self, ctx, url: str):
         """
-        Command to play a YouTube video URL in a voice channel.
+        Command to play a URL in a voice channel.
         """
         if not ctx.author.voice:
             return await send_error(ctx, "You need to join a voice channel first.")
 
-        if ctx.voice_client:
-            if ctx.voice_client.is_playing():
-                self.song_queue.append({"url": url, "requester": ctx.author})
-                return await send_embed(
-                    ctx,
-                    "✅ Added to Queue",
-                    f"Added to the queue. There are {len(self.song_queue)} songs in the queue.",
-                    discord.Color.green(),
-                )
-            else:
-                vc = ctx.voice_client
-        else:
-            try:
-                vc = await ctx.author.voice.channel.connect()
-            except discord.errors.ClientException:
-                return await send_error(ctx, "Could not join the voice channel due to permissions.")
-            except Exception as e:
-                return await send_error(ctx, f"Failed to connect: {str(e)} \n```{traceback.format_exc()}```")
+        channel = ctx.author.voice.channel
+
+        if ctx.guild.id not in self.voice_clients:
+            permissions = channel.permissions_for(ctx.guild.me)
+            if not permissions.view_channel:
+                return await send_error(ctx, "I do not have permission to view that voice channel.")
+            if not permissions.connect:
+                return await send_error(ctx, "I do not have permission to connect to that voice channel.")
+            if not permissions.speak:
+                return await send_error(ctx, "I do not have permission to speak in that voice channel.")
+            client = await channel.connect()
+            self.voice_clients[ctx.guild.id] = client
+
+        if ctx.guild.id in self.voice_clients and client.is_playing():
+            self.song_queue.append({"url": url, "requester": ctx.author})
+            return await send_embed(
+                ctx,
+                "✅ Added to Queue",
+                f"Added to the queue. There are {len(self.song_queue)} songs in the queue.",
+                discord.Color.green(),
+            )
 
         try:
-            await self.stream_audio_to_discord(ctx, vc, url)
+            await self.stream_audio_to_discord(ctx, client, url)
+        except DownloadError:
+            await send_error(ctx, "An error occurred while attempting to download audio, check console for details.")
+            print(traceback.format_exc())
         except Exception as e:
             await send_error(ctx, f"Error while streaming audio: {str(e)} \n```{traceback.format_exc()}```")
-            await vc.disconnect()
 
     @commands.command(name="skip")
     async def skip(self, ctx):
@@ -190,3 +189,4 @@ class Streaming(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Streaming(bot))
+    print("Cog loaded: streaming")
