@@ -23,4 +23,4 @@ A music bot for Discord powered by yt-dlp
 4. `uv sync` to install the dependencies.
 5. `.venv\Scripts\activate` to activate the virtual environment.
 6. Rename `config.example.toml` to `config.toml` and enter your bot token into the config.
-7. `python -m djhkhaled` to start the bot.
+7. `python -m djkhaled` to start the bot.
