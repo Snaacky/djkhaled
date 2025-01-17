@@ -30,10 +30,15 @@ async def on_message(message):
 async def main():
     try:
         await bot.load_extension("djkhaled.cogs.ping")
-        await bot.load_extension("djkhaled.cogs.streaming")
+        await bot.load_extension("djkhaled.cogs.play")
+        await bot.load_extension("djkhaled.cogs.queue")
+        await bot.load_extension("djkhaled.cogs.remove")
+        await bot.load_extension("djkhaled.cogs.seek")
+        await bot.load_extension("djkhaled.cogs.skip")
+        await bot.load_extension("djkhaled.cogs.stop")
     except Exception as e:
         print(f"Error loading extension: {e}")
-        raise e
+
     await bot.start(config.discord.token)
 
 
