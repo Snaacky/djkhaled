@@ -1,3 +1,4 @@
+import discord
 from discord.ext import commands
 
 from djkhaled.embeds import send_embed
@@ -14,11 +15,11 @@ class Stop(commands.Cog):
         Stop the currently playing audio and disconnect.
         """
         client = voice_clients[ctx.guild.id]
-        if client and client.is_playing():
+        if client:
             await client.stop()
-        #     await send_embed(ctx, "✅ Stopped", "Disconnected from the voice channel.", discord.Color.green())
-        # else:
-        #     await send_embed(ctx, "❌ Error", "I am not connected to a voice channel.", discord.Color.red())
+            return await send_embed(ctx, "✅ Stopped", "Disconnected from the voice channel.", discord.Color.green())
+
+        return await send_embed(ctx, "❌ Error", "I am not connected to a voice channel.", discord.Color.red())
 
 
 async def setup(bot):

@@ -1,7 +1,7 @@
 import tomllib
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, FilePath
 
 
 class ParentModel(BaseModel):
@@ -13,8 +13,13 @@ class Discord(ParentModel):
     prefix: str
 
 
+class YouTube(ParentModel):
+    cookies: FilePath = None
+
+
 class DJKhaledConfig(ParentModel):
     discord: Discord
+    youtube: YouTube
 
 
 workspace = Path(__file__).parent.parent

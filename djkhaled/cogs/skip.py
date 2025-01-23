@@ -3,6 +3,7 @@ from discord.ext import commands
 
 from djkhaled.embeds import send_embed, send_error
 from djkhaled.state import voice_clients
+from djkhaled.utils import after_song
 
 
 class Skip(commands.Cog):
@@ -20,9 +21,7 @@ class Skip(commands.Cog):
 
         client.stop()
         await send_embed(ctx, "⏭️ Skipped", "Skipped the current track.", discord.Color.green())
-
-        # TODO: Is the track even actually removed from the queue here when it's skipped?
-        # TODO: Doesn't go to the next song after the skip.
+        await after_song(ctx)
 
 
 async def setup(bot):

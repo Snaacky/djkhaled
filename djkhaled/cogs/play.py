@@ -26,7 +26,7 @@ class Play(commands.Cog):
         queue = song_queue[ctx.guild.id]
 
         # Add to the current queue if the a voice client object already exists.
-        if client:
+        if client and client.is_playing():
             queue.append({"url": url, "requester": ctx.author})
             return await send_embed(
                 ctx,
@@ -50,7 +50,7 @@ class Play(commands.Cog):
 
         # Once the bot is connected to the channel, begin streaming the audio.
         try:
-            await stream_audio(ctx, client, url)
+            await stream_audio(ctx=ctx, client=client, url=url)
         except DownloadError:
             await send_error(ctx, "An error occurred while attempting to download audio, check console for details.")
             print(traceback.format_exc())

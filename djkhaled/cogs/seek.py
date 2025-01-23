@@ -25,7 +25,7 @@ class Seek(commands.Cog):
 
         # TODO: This definitely doesn't work right now because I removed the time parameter...
         # TODO: Also what the fuck is going on with that message content split?
-        await stream_audio(ctx.voice_client, ctx.message.content.split(" ")[1], time)
+        # await stream_audio(ctx=ctx, ctx.message.content.split(" ")[1], time)
         await send_embed(ctx, "✅ Seeked", f"Jumped to {time} seconds in the audio.", discord.Color.green())
 
 

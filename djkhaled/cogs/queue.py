@@ -17,7 +17,7 @@ class Queue(commands.Cog):
         client = voice_clients[ctx.guild.id]
         _queue = song_queue[ctx.guild.id]
 
-        if not client or not client.is_playing():
+        if not client:
             return await send_error(ctx, "No audio is currently playing.")
 
         if not _queue:

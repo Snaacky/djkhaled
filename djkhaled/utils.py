@@ -3,14 +3,35 @@ import traceback
 
 import discord
 import yt_dlp
+from discord.ext import commands
+
+from djkhaled.config import config
+from djkhaled.state import song_queue, voice_clients
 
 
-async def stream_audio(ctx, vc, url: str):
+async def stream_audio(ctx: commands.Context, client: discord.VoiceClient, url: str):
     """
     Streams audio to Discord using yt-dlp and ffmpeg.
     """
-    opts = {"format": "bestaudio/best", "outtmpl": "pipe:1", "quiet": True, "noplaylist": True}
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    ytdlp_opts = {
+        "format": "bestaudio/best",
+        "logtostderr": False,
+        "ignoreerrors": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "outtmpl": "pipe:1",
+        "quiet": True,
+    }
+
+    if config.youtube.cookies:
+        ytdlp_opts["cookiefile"] = config.youtube.cookies
+
+    ffmpeg_opts = {
+        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+        "options": "-vn",
+    }
+
+    with yt_dlp.YoutubeDL(ytdlp_opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
         title = info.get("title", "Unknown Title")
@@ -18,11 +39,10 @@ async def stream_audio(ctx, vc, url: str):
         formatted_duration = f"{duration // 60:02}:{duration % 60:02}"
 
         try:
-            source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(info["url"]))
-            vc.play(source, after=lambda e: asyncio.run(after_song(vc)))
+            source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(info["url"], **ffmpeg_opts))
+            client.play(source, after=lambda _: after_song(ctx))
         except Exception as e:
             print(f"Error starting audio stream: {str(e)} \n```{traceback.format_exc()}```")
-            return await vc.disconnect()
 
         embed = discord.Embed(
             title="🎶 Now Playing",
@@ -32,13 +52,22 @@ async def stream_audio(ctx, vc, url: str):
         await ctx.channel.send(embed=embed)
 
 
-async def after_song(self, vc):
+def after_song(ctx: commands.Context):
     """
     Call after a song finishes playing.
     It will play the next song in the queue, if there is one.
     """
-    if self.song_queue:
-        next_song = self.song_queue.pop(0)
-        await self.stream_audio_to_discord(vc.channel, vc, next_song["url"])
-    else:
-        await vc.disconnect()
+    client = voice_clients[ctx.guild.id]
+    queue = song_queue[ctx.guild.id]
+
+    if not queue:
+        return
+
+    song = queue.pop(0)
+    coro = stream_audio(ctx=ctx, client=client, url=song.get("url"))
+    fut = asyncio.run_coroutine_threadsafe(coro, client.loop)
+
+    try:
+        fut.result()
+    except Exception as e:
+        print(f"Error starting next song: {str(e)} \n```{traceback.format_exc()}```")
