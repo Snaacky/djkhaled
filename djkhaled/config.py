@@ -13,19 +13,22 @@ class Discord(ParentModel):
     prefix: str
 
 
+class DJKhaled(ParentModel):
+    admins: list[int]
+
+
 class YouTube(ParentModel):
     cookies: FilePath = None
 
 
 class DJKhaledConfig(ParentModel):
     discord: Discord
+    djkhaled: DJKhaled
     youtube: YouTube
 
 
-workspace = Path(__file__).parent.parent
-config_file = workspace / "config.toml"
+path = Path(__file__).parent.parent / "config.toml"
+if not path.is_file():
+    raise FileNotFoundError(f"Cannot load {path}!")
 
-if not config_file.is_file():
-    raise FileNotFoundError(f"Cannot load config from {config_file} because it doesn't exist!")
-
-config = DJKhaledConfig.model_validate(tomllib.load(config_file.open("rb")))
+config = DJKhaledConfig.model_validate(tomllib.load(path.open("rb")))

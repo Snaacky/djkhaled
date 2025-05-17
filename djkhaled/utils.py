@@ -1,48 +1,39 @@
 import asyncio
+import logging
 import traceback
+from typing import Optional
 
 import discord
 import yt_dlp
 from discord.ext import commands
 
-from djkhaled.config import config
-from djkhaled.state import song_queue, voice_clients
+from djkhaled.consts import ffmpeg_opts, ytdlp_opts
+from djkhaled.state import Track, state
 
 
-async def stream_audio(ctx: commands.Context, client: discord.VoiceClient, url: str):
+async def stream_audio(ctx: commands.Context, track: Track, skip_to: Optional[int] = None) -> None:
     """
     Streams audio to Discord using yt-dlp and ffmpeg.
     """
-    ytdlp_opts = {
-        "format": "bestaudio/best",
-        "logtostderr": False,
-        "ignoreerrors": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "outtmpl": "pipe:1",
-        "quiet": True,
-    }
+    gstate = state[ctx.guild.id]
 
-    if config.youtube.cookies:
-        ytdlp_opts["cookiefile"] = config.youtube.cookies
-
-    ffmpeg_opts = {
-        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-        "options": "-vn",
-    }
-
+    # https://stackoverflow.com/a/73132956/2274960
     with yt_dlp.YoutubeDL(ytdlp_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
+        info = ydl.extract_info(track.url, download=False)
 
         title = info.get("title", "Unknown Title")
         duration = info.get("duration", 0)
+        # TODO: formatted_duration needs to be fixed for Soundcloud
         formatted_duration = f"{duration // 60:02}:{duration % 60:02}"
+
+        if skip_to:
+            ffmpeg_opts["before_options"] = ffmpeg_opts["before_options"] + f" -ss {skip_to}"
 
         try:
             source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(info["url"], **ffmpeg_opts))
-            client.play(source, after=lambda _: after_song(ctx))
+            gstate.client.play(source, after=lambda _: after_song(ctx))
         except Exception as e:
-            print(f"Error starting audio stream: {str(e)} \n```{traceback.format_exc()}```")
+            logging.error(f"Error starting audio stream: {str(e)} \n```{traceback.format_exc()}```")
 
         embed = discord.Embed(
             title="🎶 Now Playing",
@@ -50,24 +41,25 @@ async def stream_audio(ctx: commands.Context, client: discord.VoiceClient, url: 
             color=discord.Color.green(),
         )
         await ctx.channel.send(embed=embed)
+        gstate.playing = track
 
 
-def after_song(ctx: commands.Context):
+def after_song(ctx: commands.Context) -> None:
     """
     Call after a song finishes playing.
     It will play the next song in the queue, if there is one.
     """
-    client = voice_clients[ctx.guild.id]
-    queue = song_queue[ctx.guild.id]
+    gstate = state[ctx.guild.id]
 
-    if not queue:
+    if not gstate.queue:
+        gstate.playing = None
         return
 
-    song = queue.pop(0)
-    coro = stream_audio(ctx=ctx, client=client, url=song.get("url"))
-    fut = asyncio.run_coroutine_threadsafe(coro, client.loop)
+    track = gstate.queue.pop(0)
+    coro = stream_audio(ctx=ctx, track=track)
+    fut = asyncio.run_coroutine_threadsafe(coro, gstate.client.loop)
 
     try:
         fut.result()
     except Exception as e:
-        print(f"Error starting next song: {str(e)} \n```{traceback.format_exc()}```")
+        logging.error(f"Error starting next song: {str(e)} \n```{traceback.format_exc()}```")

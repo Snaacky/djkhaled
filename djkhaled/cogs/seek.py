@@ -1,34 +1,37 @@
+import logging
+
 import discord
 from discord.ext import commands
+from pytimeparse import parse
 
 from djkhaled.embeds import send_embed, send_error
-from djkhaled.state import voice_clients
+from djkhaled.state import state
 from djkhaled.utils import stream_audio
 
 
 class Seek(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         self.bot = bot
 
     @commands.command(name="seek")
-    async def seek(self, ctx: commands.Context, time: int):
+    @commands.guild_only()
+    async def seek(self, ctx: commands.Context, time: str) -> None:
         """
         Seek to a specific time in the current audio.
         """
-        client = voice_clients[ctx.guild.id]
+        # TODO: 99% sure this breaks if there is a queue
+        # TODO: Make sure that we can't see before or after the song length
+        # TODO: Would be nice if we didn't need to re-ytldp the song once we already have the data...
+        gstate = state[ctx.guild.id]
 
-        if not client or not client.is_playing():
+        if not gstate.client or not gstate.client.is_playing() or not gstate.playing:
             return await send_error(ctx, "No audio is currently playing.")
 
-        client = voice_clients[ctx.guild.id]
-        client.stop()
-
-        # TODO: This definitely doesn't work right now because I removed the time parameter...
-        # TODO: Also what the fuck is going on with that message content split?
-        # await stream_audio(ctx=ctx, ctx.message.content.split(" ")[1], time)
-        await send_embed(ctx, "✅ Seeked", f"Jumped to {time} seconds in the audio.", discord.Color.green())
+        gstate.client.stop()
+        await stream_audio(ctx=ctx, track=gstate.playing, skip_to=parse(time))
+        await send_embed(ctx, "✅ Seeked", f"Jumped to {time} in the current playing audio.", discord.Color.green())
 
 
-async def setup(bot):
+async def setup(bot) -> None:
     await bot.add_cog(Seek(bot))
-    print("Cog loaded: seek")
+    logging.info("Cog loaded: seek")

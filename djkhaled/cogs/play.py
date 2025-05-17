@@ -1,42 +1,45 @@
+import logging
 import traceback
 
 import discord
 from discord.ext import commands
-from yt_dlp.utils import DownloadError
 
 from djkhaled.embeds import send_embed, send_error
-from djkhaled.state import song_queue, voice_clients
+from djkhaled.state import state, Track
 from djkhaled.utils import stream_audio
 
 
 class Play(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         self.bot = bot
 
     @commands.command(name="play")
-    async def play(self, ctx: commands.Context, url: str):
+    @commands.guild_only()
+    async def play(self, ctx: commands.Context, url: str) -> None:
         """
         Command to play a URL in a voice channel.
         """
-        if not ctx.author.voice:
-            return await send_error(ctx, "You need to join a voice channel first.")
+        # TODO: Add support for ytsearch
 
-        client = voice_clients[ctx.guild.id]
+        if not ctx.author.voice or ctx.author.voice.channel.guild.id != ctx.guild.id:
+            return await send_error(ctx, "You need to join a voice channel in this server first.")
+
+        gstate = state[ctx.guild.id]
         channel = ctx.author.voice.channel
-        queue = song_queue[ctx.guild.id]
+        track = Track(url=url, requester=ctx.author)
 
         # Add to the current queue if the a voice client object already exists.
-        if client and client.is_playing():
-            queue.append({"url": url, "requester": ctx.author})
+        if gstate.client and gstate.client.is_playing():
+            gstate.queue.append(track)
             return await send_embed(
                 ctx,
                 "✅ Added to Queue",
-                f"Added to the queue. There are {len(queue)} songs in the queue.",
+                f"Added to the queue. There are {len(gstate.queue)} songs in the queue.",
                 discord.Color.green(),
             )
 
         # Verify the bot can connect to the channel and create a new voice client object.
-        if not client:
+        if not gstate.client or (gstate.client and not gstate.client.is_connected()):
             permissions = channel.permissions_for(ctx.guild.me)
             if not permissions.view_channel:
                 return await send_error(ctx, "I do not have permission to view that voice channel.")
@@ -45,19 +48,16 @@ class Play(commands.Cog):
             if not permissions.speak:
                 return await send_error(ctx, "I do not have permission to speak in that voice channel.")
 
-            client = await channel.connect()
-            voice_clients[ctx.guild.id] = client
+            gstate.client = await channel.connect(self_deaf=True)
 
         # Once the bot is connected to the channel, begin streaming the audio.
         try:
-            await stream_audio(ctx=ctx, client=client, url=url)
-        except DownloadError:
-            await send_error(ctx, "An error occurred while attempting to download audio, check console for details.")
-            print(traceback.format_exc())
-        except Exception as e:
-            await send_error(ctx, f"Error while streaming audio: {str(e)} \n```{traceback.format_exc()}```")
+            await stream_audio(ctx=ctx, track=track)
+        except Exception:
+            await send_error(ctx, "An error occurred while attempting to stream audio, check console for details.")
+            logging.error(traceback.format_exc())
 
 
-async def setup(bot):
+async def setup(bot) -> None:
     await bot.add_cog(Play(bot))
-    print("Cog loaded: play")
+    logging.info("Cog loaded: play")
