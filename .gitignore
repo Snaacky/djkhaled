@@ -12,3 +12,4 @@ wheels/
 # djkhaled
 config.toml
 .vscode/
+cookies*
